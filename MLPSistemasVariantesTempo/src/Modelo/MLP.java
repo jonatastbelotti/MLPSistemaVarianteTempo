@@ -115,7 +115,7 @@ public class MLP {
 
         //Iniciando janela de entradas
         entradas[0] = -1D;
-        for (int i = 1; i < entradas.length; i++) {
+        for (int i = entradas.length - 1; i > 0; i--) {
           entradas[i] = separarEntrada(linha);
           linha = lerArq.readLine();
         }
@@ -172,7 +172,7 @@ public class MLP {
       }
 
       entradas[0] = -1D;
-      for (int i = 1; i < entradas.length; i++) {
+      for (int i = entradas.length - 1; i > 0; i--) {
         entradas[i] = separarEntrada(linha);
         linha = lerArq.readLine();
       }
@@ -237,7 +237,8 @@ public class MLP {
 
       //Iniciando janela de entradas
       entradas[0] = -1D;
-      for (int i = 1; i < entradas.length; i++) {
+      for (int i = entradas.length - 1; i > 0; i--) {
+        numAmostras++;
         entradas[i] = separarEntrada(linha);
         linha = lerArq.readLine();
       }
@@ -251,9 +252,11 @@ public class MLP {
         //Calculando erro
         valorParcial = 0D;
         for (int i = 0; i < saidaCamadaSaida.length; i++) {
-          valorParcial = valorParcial + Math.pow((double) (saidaEsperada[i] - saidaCamadaSaida[i]), 2D);
+          //  valorParcial = valorParcial + Math.pow((double) (saidaEsperada[i] - saidaCamadaSaida[i]), 2D);
+          valorParcial += Math.abs(saidaEsperada[i] - saidaCamadaSaida[i]);
         }
-        erroMedio = erroMedio + (valorParcial / 2D);
+        //  erroMedio = erroMedio + (valorParcial / 2D);
+        erroMedio += valorParcial;
 
         linha = lerArq.readLine();
         ajustarJanela();
@@ -285,8 +288,8 @@ public class MLP {
   }
 
   private void ajustarJanela() {
-    for (int i = 1; i < entradas.length - 1; i++) {
-      entradas[i + 1] = entradas[i];
+    for (int i = entradas.length - 1; i > 1; i--) {
+      entradas[i] = entradas[i - 1];
     }
   }
 
