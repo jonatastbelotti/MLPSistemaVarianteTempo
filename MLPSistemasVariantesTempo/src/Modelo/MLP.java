@@ -14,21 +14,20 @@ import java.util.Random;
  */
 public class MLP {
 
-  public static final int NUM_ENTRADAS = 10;
-  private final int NUM_NEU_CAMADA_ESCONDIDA = 15;
+  public static final int NUM_ENTRADAS = 15;
+  private final int NUM_NEU_CAMADA_ESCONDIDA = 25;
   public static final int NUM_NEU_CAMADA_SAIDA = 1;
   private final double TAXA_APRENDIZAGEM = 0.1;
-  private final double PRECISAO = 0.000005;
+  private final double PRECISAO = 0.5 * Math.pow(10D, -6D);
   private final double FATOR_MOMENTUM = 0.8;
   private final double BETA = 1.0;
+  private final int LIMITE_NUM_EPOCAS = 50000;
 
   private int numEpocas;
   private double[] entradas;
-  private double[][] pesosCamadaEscondidaInicial;
   private double[][] pesosCamadaEscondida;
   private double[][] pesosCamadaEscondidaProximo;
   private double[][] pesosCamadaEscondidaAnterior;
-  private double[][] pesosCamadaSaidaInicial;
   private double[][] pesosCamadaSaida;
   private double[][] pesosCamadaSaidaProximo;
   private double[][] pesosCamadaSaidaAnterior;
@@ -44,11 +43,9 @@ public class MLP {
     Random random;
 
     entradas = new double[NUM_ENTRADAS + 1];
-    pesosCamadaEscondidaInicial = new double[NUM_NEU_CAMADA_ESCONDIDA][NUM_ENTRADAS + 1];
     pesosCamadaEscondida = new double[NUM_NEU_CAMADA_ESCONDIDA][NUM_ENTRADAS + 1];
     pesosCamadaEscondidaAnterior = new double[NUM_NEU_CAMADA_ESCONDIDA][NUM_ENTRADAS + 1];
     pesosCamadaEscondidaProximo = new double[NUM_NEU_CAMADA_ESCONDIDA][NUM_ENTRADAS + 1];
-    pesosCamadaSaidaInicial = new double[NUM_NEU_CAMADA_SAIDA][NUM_NEU_CAMADA_ESCONDIDA + 1];
     pesosCamadaSaida = new double[NUM_NEU_CAMADA_SAIDA][NUM_NEU_CAMADA_ESCONDIDA + 1];
     pesosCamadaSaidaAnterior = new double[NUM_NEU_CAMADA_SAIDA][NUM_NEU_CAMADA_ESCONDIDA + 1];
     pesosCamadaSaidaProximo = new double[NUM_NEU_CAMADA_SAIDA][NUM_NEU_CAMADA_ESCONDIDA + 1];
@@ -65,18 +62,15 @@ public class MLP {
 
     for (int i = 0; i < NUM_NEU_CAMADA_ESCONDIDA; i++) {
       for (int j = 0; j < NUM_ENTRADAS + 1; j++) {
-        pesosCamadaEscondidaInicial[i][j] = random.nextDouble();
+        pesosCamadaEscondida[i][j] = random.nextDouble();
       }
     }
 
     for (int i = 0; i < NUM_NEU_CAMADA_SAIDA; i++) {
       for (int j = 0; j < NUM_NEU_CAMADA_ESCONDIDA + 1; j++) {
-        pesosCamadaSaidaInicial[i][j] = random.nextDouble();
+        pesosCamadaSaida[i][j] = random.nextDouble();
       }
     }
-
-    copiarMatriz(pesosCamadaEscondidaInicial, pesosCamadaEscondida);
-    copiarMatriz(pesosCamadaSaidaInicial, pesosCamadaSaida);
   }
 
   public boolean treinar(Arquivo arquivoTreinamento) {
@@ -87,10 +81,8 @@ public class MLP {
     double erroAnterior;
     long tempInicial;
 
-    copiarMatriz(pesosCamadaEscondidaInicial, pesosCamadaEscondida);
-    copiarMatriz(pesosCamadaSaidaInicial, pesosCamadaSaida);
-    copiarMatriz(pesosCamadaEscondidaInicial, pesosCamadaEscondidaAnterior);
-    copiarMatriz(pesosCamadaSaidaInicial, pesosCamadaSaidaAnterior);
+    copiarMatriz(pesosCamadaEscondida, pesosCamadaEscondidaAnterior);
+    copiarMatriz(pesosCamadaSaida, pesosCamadaSaidaAnterior);
 
     tempInicial = System.currentTimeMillis();
     numEpocas = 0;
@@ -135,7 +127,7 @@ public class MLP {
         arq.close();
         erroAtual = erroQuadraticoMedio(arquivoTreinamento);
         Comunicador.addLog(String.format("%d   %.6f", numEpocas, erroAtual).replace(".", ","));
-      } while (Math.abs(erroAtual - erroAnterior) > PRECISAO && numEpocas < 10000);
+      } while (Math.abs(erroAtual - erroAnterior) > PRECISAO && numEpocas < LIMITE_NUM_EPOCAS);
 
       Comunicador.addLog(String.format("Fim do treinamento. (%.2fs)", (double) (System.currentTimeMillis() - tempInicial) / 1000D));
       imprimirPesos();
@@ -153,13 +145,16 @@ public class MLP {
     BufferedReader lerArq;
     String linha;
     int numAmostras;
+    double erroMedio;
+    double variancia;
     double erro;
 
     numAmostras = 0;
-    erro = 0D;
+    erroMedio = 0D;
+    variancia = 0D;
 
     Comunicador.iniciarLog("Início teste da MLP");
-    Comunicador.addLog("d  -- y");
+    Comunicador.addLog("x  -- y");
 
     try {
       //Iniciando janela de entradas
@@ -198,16 +193,27 @@ public class MLP {
         numAmostras++;
 
         calcularSaidas();
-        Comunicador.addLog(String.format("%.6f %.6f", saidaEsperada[0], saidaCamadaSaida[0]));
-        erro += (100D / saidaEsperada[0]) * Math.abs(saidaEsperada[0] - saidaCamadaSaida[0]);
 
-        linha = lerArq.readLine();
+        erro = (100D / saidaEsperada[0]) * Math.abs(saidaEsperada[0] - saidaCamadaSaida[0]);
+        erroMedio += erro;
+        variancia += Math.pow(erro, 2D);
+        Comunicador.addLog(String.format("%.6f %.6f %.2f%%", saidaEsperada[0], saidaCamadaSaida[0], erro));
+
         ajustarJanela();
         entradas[1] = saidaCamadaSaida[0];
+        linha = lerArq.readLine();
       }
 
-      erro /= (double) numAmostras;
-      Comunicador.addLog(String.format("Erro relativo médio: %.2f%%", erro));
+      //Calculando erro relativo médio
+      erroMedio = erroMedio / (double) numAmostras;
+
+      //Calculando variância
+      variancia = variancia - ((double) numAmostras * Math.pow(erroMedio, 2D));
+      variancia = variancia / ((double) (numAmostras - 1));
+
+      Comunicador.addLog("Fim do teste");
+      Comunicador.addLog(String.format("Erro relativo médio: %.6f%%", erroMedio));
+      Comunicador.addLog(String.format("Variância: %.6f%%", variancia));
 
       arq.close();
     } catch (FileNotFoundException ex) {
@@ -221,7 +227,7 @@ public class MLP {
     String linha;
     int numAmostras;
     double erroMedio;
-    double valorParcial;
+    double erro;
 
     erroMedio = 0D;
     numAmostras = 0;
@@ -238,7 +244,6 @@ public class MLP {
       //Iniciando janela de entradas
       entradas[0] = -1D;
       for (int i = entradas.length - 1; i > 0; i--) {
-        numAmostras++;
         entradas[i] = separarEntrada(linha);
         linha = lerArq.readLine();
       }
@@ -250,17 +255,15 @@ public class MLP {
         calcularSaidas();
 
         //Calculando erro
-        valorParcial = 0D;
+        erro = 0D;
         for (int i = 0; i < saidaCamadaSaida.length; i++) {
-          //  valorParcial = valorParcial + Math.pow((double) (saidaEsperada[i] - saidaCamadaSaida[i]), 2D);
-          valorParcial += Math.abs(saidaEsperada[i] - saidaCamadaSaida[i]);
+          erro = erro + Math.abs(saidaEsperada[i] - saidaCamadaSaida[i]);
         }
-        //  erroMedio = erroMedio + (valorParcial / 2D);
-        erroMedio += valorParcial;
+        erroMedio = erroMedio + erro;
 
-        linha = lerArq.readLine();
         ajustarJanela();
         entradas[1] = saidaEsperada[0];
+        linha = lerArq.readLine();
       }
 
       arq.close();

@@ -91,7 +91,7 @@ public class Main extends javax.swing.JFrame {
     jTxtLogTreinamento.setRows(5);
     jScrollPane1.setViewportView(jTxtLogTreinamento);
 
-    jLabel3.setText("* Limitado em 10.000 épocas");
+    jLabel3.setText("* Limitado em 50.000 épocas");
 
     jBtnSalvarTreinamento.setText("Salvar");
     jBtnSalvarTreinamento.setEnabled(false);
@@ -431,6 +431,7 @@ public class Main extends javax.swing.JFrame {
     Comunicador.setjBtnSalvar(jBtnSalvarTreinamento);
     Comunicador.setEnabledBotaoTestar(false);
     Comunicador.setEnabledBotaoSalvar(false);
+    jTxtLogTeste.setText("");
     treinarRede();
   }
 
